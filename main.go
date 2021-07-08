@@ -8,14 +8,11 @@ import (
 )
 
 func main() {
-
 	app := fiber.New()
 	app.Use(cors.New())
 
-	app.Get("", func(c *fiber.Ctx) error {
-		return c.JSON("hello")
-	})
-	
+	app.Static("/", "./wwwroot")
+
 	routes.Serve(app)
 
 	app.Listen(":8080")

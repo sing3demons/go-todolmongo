@@ -25,6 +25,6 @@ func ConnectDB() *mongo.Database {
 	}
 	fmt.Println("Connected to MongoDB!")
 
-	collection := client.Database("go-todo")
-	return collection
+	db := client.Database("go-todo")
+	return db
 }
