@@ -12,8 +12,14 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type Item struct {
-	DB *mongo.Database
+
+
+type itemController struct {
+	db *mongo.Database
+}
+
+func NewItemController(db *mongo.Database) itemController {
+	return itemController{db: db}
 }
 
 type CreateItem struct {
@@ -26,11 +32,11 @@ type UpdateItem struct {
 	Description string `json:"description" bson:"description" validate:"required"`
 }
 
-func (tx Item) collection() *mongo.Collection {
-	return tx.DB.Collection("items")
+func (tx itemController) collection() *mongo.Collection {
+	return tx.db.Collection("items")
 }
 
-func (tx Item) Delete(c *fiber.Ctx) error {
+func (tx itemController) Delete(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -46,14 +52,14 @@ func (tx Item) Delete(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func (tx Item) Update(c *fiber.Ctx) error {
+func (tx itemController) Update(c *fiber.Ctx) error {
 	var form UpdateItem
 
 	if err := c.BodyParser(&form); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(err.Error())
 	}
 
-	if err :=helper.ValidateStruct(&form); err != nil {
+	if err := helper.ValidateStruct(&form); err != nil {
 		return c.JSON(err)
 	}
 
@@ -76,7 +82,7 @@ func (tx Item) Update(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func (tx Item) FindItems(c *fiber.Ctx) error {
+func (tx itemController) FindItems(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	items := []models.Item{}
@@ -95,7 +101,7 @@ func (tx Item) FindItems(c *fiber.Ctx) error {
 	// 	items = append(items, item)
 	// }
 
-	if err = cursor.All(ctx, &items); err != nil {
+	if err := cursor.All(ctx, &items); err != nil {
 		panic(err)
 	}
 
@@ -103,7 +109,7 @@ func (tx Item) FindItems(c *fiber.Ctx) error {
 
 }
 
-func (tx Item) FindOne(c *fiber.Ctx) error {
+func (tx itemController) FindOne(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	var item models.Item
@@ -119,7 +125,7 @@ func (tx Item) FindOne(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"item": item})
 }
 
-func (tx Item) Create(c *fiber.Ctx) error {
+func (tx itemController) Create(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	var form CreateItem
@@ -149,7 +155,7 @@ func (tx Item) Create(c *fiber.Ctx) error {
 	})
 }
 
-func (tx Item) findItemById(c *fiber.Ctx) (primitive.M, error) {
+func (tx itemController) findItemById(c *fiber.Ctx) (primitive.M, error) {
 	id := c.Params("id")
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {

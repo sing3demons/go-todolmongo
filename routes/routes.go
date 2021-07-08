@@ -9,7 +9,7 @@ import (
 
 func Serve(app *fiber.App) {
 	db := config.ConnectDB()
-	itemController := controllers.Item{DB: db}
+	itemController := controllers.NewItemController(db)
 	v1 := app.Group("api/v1/items")
 	{
 		v1.Get("", itemController.FindItems)
