@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"time"
+	"todo-mongo/helper"
 	"todo-mongo/models"
 
 	"github.com/gofiber/fiber/v2"
@@ -16,13 +17,13 @@ type Item struct {
 }
 
 type CreateItem struct {
-	Title       string `json:"title" bson:"title"`
-	Description string `json:"description" bson:"description"`
+	Title       string `json:"title" bson:"title" validate:"required"`
+	Description string `json:"description" bson:"description" validate:"required"`
 }
 
 type UpdateItem struct {
-	Title       string `json:"title" bson:"title"`
-	Description string `json:"description" bson:"description"`
+	Title       string `json:"title" bson:"title" validate:"required"`
+	Description string `json:"description" bson:"description" validate:"required"`
 }
 
 func (tx Item) collection() *mongo.Collection {
@@ -38,20 +39,24 @@ func (tx Item) Delete(c *fiber.Ctx) error {
 		c.Status(fiber.StatusNotFound).JSON(err)
 	}
 
-	result, _ := tx.collection().DeleteOne(ctx, filter)
-	if result.DeletedCount == 0 {
-		return c.Status(fiber.StatusUnprocessableEntity).JSON("not found")
+	if err := tx.collection().FindOneAndDelete(ctx, filter).Err(); err != nil {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(err.Error())
 	}
 
-	c.JSON(result)
-	return c.SendStatus(fiber.StatusCreated)
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 func (tx Item) Update(c *fiber.Ctx) error {
 	var form UpdateItem
-	if err:=c.BodyParser(&form);err!=nil{
+
+	if err := c.BodyParser(&form); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(err.Error())
 	}
+
+	if err :=helper.ValidateStruct(&form); err != nil {
+		return c.JSON(err)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -64,13 +69,8 @@ func (tx Item) Update(c *fiber.Ctx) error {
 		{"$set", form},
 	}
 
-	result, err := tx.collection().UpdateOne(ctx, filter, update)
-	if err != nil {
-		return c.Status(fiber.StatusUnprocessableEntity).JSON(err.Error())
-	}
-
-	if result.UpsertedCount == 0 {
-		return c.Status(fiber.StatusUnprocessableEntity).JSON("cannot update document")
+	if err := tx.collection().FindOneAndUpdate(ctx, filter, update).Err(); err != nil {
+		return c.JSON(err.Error())
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -99,7 +99,7 @@ func (tx Item) FindItems(c *fiber.Ctx) error {
 		panic(err)
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"items": items})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"items": items})
 
 }
 
@@ -116,7 +116,7 @@ func (tx Item) FindOne(c *fiber.Ctx) error {
 	if err := tx.collection().FindOne(ctx, filter).Decode(&item); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(err.Error())
 	}
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"item": item})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"item": item})
 }
 
 func (tx Item) Create(c *fiber.Ctx) error {
@@ -133,6 +133,10 @@ func (tx Item) Create(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&form); err != nil {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(err.Error())
+	}
+
+	if err := helper.ValidateStruct(&form); err != nil {
+		return c.JSON(err)
 	}
 
 	_, err := tx.collection().InsertOne(ctx, form)
